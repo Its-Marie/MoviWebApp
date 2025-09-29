@@ -3,6 +3,7 @@ from data_manager import DataManager
 from models import db, Movie
 from dotenv import load_dotenv
 import os
+import requests
 
 load_dotenv()
 
@@ -20,15 +21,127 @@ db.init_app(app)
 data_manager = DataManager()
 
 
-@app.route("/")
+# Route 1: Home page - Show all users and form for adding new users
+@app.route('/')
 def home():
-    return "Welcome to MoviWeb App!"
+    """Home page showing all users and add user form"""
+    users = data_manager.get_all_users()
+    return render_template('index.html', users=users)
 
 
-@app.route("/users")
-def list_users():
-    users = data_manager.get_all_users()  # Correct method name from your DataManager
-    return str(users)  # Temporarily returning users as a string
+# Route 2: Add new user (POST)
+@app.route('/users', methods=['POST'])
+def add_user():
+    """Add a new user to the database"""
+    name = request.form.get('name')
+
+    if name and name.strip():
+        try:
+            data_manager.create_user(name.strip())
+            flash(f'User "{name}" created successfully!', 'success')
+        except Exception as e:
+            flash(f'Error creating user: {str(e)}', 'error')
+    else:
+        flash('Please provide a valid name', 'error')
+
+    return redirect(url_for('home'))
+
+
+# Route 3: Display user's movies (GET)
+@app.route('/users/<int:user_id>/movies', methods=['GET'])
+def user_movies(user_id):
+    """Display all movies for a specific user"""
+    user = User.query.get_or_404(user_id)
+    movies = data_manager.get_user_movies(user_id)
+    return render_template('user_movies.html', user=user, movies=movies)
+
+
+# Route 4: Add movie to user's list (POST)
+@app.route('/users/<int:user_id>/movies', methods=['POST'])
+def add_movie(user_id):
+    """Add a new movie to user's favorite list"""
+    user = User.query.get_or_404(user_id)
+
+    name = request.form.get('name')
+
+    if name and name.strip():
+        try:
+            api_key = os.getenv("OMDB_API_KEY")
+            response = requests.get("http://www.omdbapi.com/", params={
+                "t": name.strip(),
+                "apikey": api_key
+            })
+            data = response.json()
+
+            if data.get("Response") == "True":
+                director = data.get("Director", "")
+                year = int(data.get("Year", "0")) if data.get("Year", "").isdigit() else None
+                poster_url = data.get("Poster", "")
+
+                data_manager.add_movie(
+                    user_id,
+                    data.get("Title", name.strip()),
+                    director,
+                    year,
+                    poster_url
+                )
+                flash(f'Movie "{data.get("Title")}" added successfully!', 'success')
+            else:
+                flash(f'Could not find movie "{name}" in OMDb.', 'error')
+
+        except Exception as e:
+            flash(f'Error adding movie: {str(e)}', 'error')
+    else:
+        flash('Please provide a movie name', 'error')
+
+    return redirect(url_for('user_movies', user_id=user_id))
+
+
+# Route 5: Update movie title (POST)
+@app.route('/users/<int:user_id>/movies/<int:movie_id>/update', methods=['POST'])
+def update_movie(user_id, movie_id):
+    """Update the title of a specific movie"""
+    user = User.query.get_or_404(user_id)
+    movie = Movie.query.get_or_404(movie_id)
+
+    # Verify movie belongs to the user
+    if movie.user_id != user_id:
+        flash('Movie not found for this user', 'error')
+        return redirect(url_for('user_movies', user_id=user_id))
+
+    new_title = request.form.get('title')
+
+    if new_title and new_title.strip():
+        try:
+            data_manager.update_movie(movie_id, new_title.strip())
+            flash(f'Movie title updated successfully!', 'success')
+        except Exception as e:
+            flash(f'Error updating movie: {str(e)}', 'error')
+    else:
+        flash('Please provide a valid movie title', 'error')
+
+    return redirect(url_for('user_movies', user_id=user_id))
+
+
+# Route 6: Delete movie (POST)
+@app.route('/users/<int:user_id>/movies/<int:movie_id>/delete', methods=['POST'])
+def delete_movie(user_id, movie_id):
+    """Remove a specific movie from user's favorite list"""
+    movie = Movie.query.get_or_404(movie_id)
+
+    # Verify movie belongs to the user
+    if movie.user_id != user_id:
+        flash('Movie not found for this user', 'error')
+        return redirect(url_for('user_movies', user_id=user_id))
+
+    try:
+        movie_name = movie.name
+        data_manager.delete_movie(movie_id)
+        flash(f'Movie "{movie_name}" deleted successfully!', 'success')
+    except Exception as e:
+        flash(f'Error deleting movie: {str(e)}', 'error')
+
+    return redirect(url_for('user_movies', user_id=user_id))
 
 
 if __name__ == "__main__":
