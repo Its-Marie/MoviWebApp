@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>{{ user.name }}'s Movies</h1>
+
+<a href="{{ url_for('index') }}">Back</a>
+
+<ul>
+    {% for movie in movies %}
+    <li>
+        {% if movie.poster_url %}
+        <img src="{{ movie.poster_url }}" alt="{{ movie.name }}">
+        {% endif %}
+
+        <h3>{{ movie.name }}</h3>
+        <p>{{ movie.director }}</p>
+        <p>{{ movie.year }}</p>
+
+        <form action="{{ url_for('update_movie', user_id=user.id, movie_id=movie.id) }}" method="post">
+            <input type="text" name="title" required>
+            <button type="submit">Update</button>
+        </form>
+
+        <form action="{{ url_for('delete_movie', user_id=user.id, movie_id=movie.id) }}" method="post">
+            <button type="submit">Delete</button>
+        </form>
+    </li>
+    {% endfor %}
+</ul>
+
+<form action="{{ url_for('add_movie', user_id=user.id) }}" method="post">
+    <input type="text" name="name" required>
+    <button type="submit">Add Movie</button>
+</form>
+
+{% endblock %}
