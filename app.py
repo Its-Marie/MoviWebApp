@@ -1,6 +1,6 @@
-from flask import Flask
+from flask import Flask, render_template, request, redirect, url_for, flash
 from data_manager import DataManager
-from models import db, Movie
+from models import db, User, Movie
 from dotenv import load_dotenv
 import os
 import requests
@@ -21,33 +21,24 @@ db.init_app(app)
 data_manager = DataManager()
 
 
-# Route 1: Home page - Show all users and form for adding new users
 @app.route('/')
-def home():
+def index():
     """Home page showing all users and add user form"""
     users = data_manager.get_all_users()
     return render_template('index.html', users=users)
 
 
-# Route 2: Add new user (POST)
 @app.route('/users', methods=['POST'])
 def add_user():
     """Add a new user to the database"""
     name = request.form.get('name')
 
-    if name and name.strip():
-        try:
-            data_manager.create_user(name.strip())
-            flash(f'User "{name}" created successfully!', 'success')
-        except Exception as e:
-            flash(f'Error creating user: {str(e)}', 'error')
-    else:
-        flash('Please provide a valid name', 'error')
+    if name:
+        data_manager.create_user(name)
 
-    return redirect(url_for('home'))
+    return redirect(url_for('index'))
 
 
-# Route 3: Display user's movies (GET)
 @app.route('/users/<int:user_id>/movies', methods=['GET'])
 def user_movies(user_id):
     """Display all movies for a specific user"""
@@ -56,7 +47,6 @@ def user_movies(user_id):
     return render_template('user_movies.html', user=user, movies=movies)
 
 
-# Route 4: Add movie to user's list (POST)
 @app.route('/users/<int:user_id>/movies', methods=['POST'])
 def add_movie(user_id):
     """Add a new movie to user's favorite list"""
@@ -97,7 +87,6 @@ def add_movie(user_id):
     return redirect(url_for('user_movies', user_id=user_id))
 
 
-# Route 5: Update movie title (POST)
 @app.route('/users/<int:user_id>/movies/<int:movie_id>/update', methods=['POST'])
 def update_movie(user_id, movie_id):
     """Update the title of a specific movie"""
@@ -123,7 +112,6 @@ def update_movie(user_id, movie_id):
     return redirect(url_for('user_movies', user_id=user_id))
 
 
-# Route 6: Delete movie (POST)
 @app.route('/users/<int:user_id>/movies/<int:movie_id>/delete', methods=['POST'])
 def delete_movie(user_id, movie_id):
     """Remove a specific movie from user's favorite list"""
