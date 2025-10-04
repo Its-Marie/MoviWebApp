@@ -3,8 +3,6 @@
 
 <h1>{{ user.name }}'s Movies</h1>
 
-<a href="{{ url_for('index') }}">Back</a>
-
 <ul>
     {% for movie in movies %}
     <li>
@@ -13,23 +11,28 @@
         {% endif %}
 
         <h3>{{ movie.name }}</h3>
-        <p>{{ movie.director }}</p>
-        <p>{{ movie.year }}</p>
+        <p>Director: {{ movie.director or "Unknown" }}</p>
+        <p>Year: {{ movie.year or "N/A" }}</p>
 
+        <!-- Update movie -->
         <form action="{{ url_for('update_movie', user_id=user.id, movie_id=movie.id) }}" method="post">
-            <input type="text" name="title" required>
+            <input type="text" name="title" placeholder="New title" required>
             <button type="submit">Update</button>
         </form>
 
+        <!-- Delete movie -->
         <form action="{{ url_for('delete_movie', user_id=user.id, movie_id=movie.id) }}" method="post">
             <button type="submit">Delete</button>
         </form>
     </li>
+    {% else %}
+    <li>No movies yet. Add one below 👇</li>
     {% endfor %}
 </ul>
 
+<!-- Add movie -->
 <form action="{{ url_for('add_movie', user_id=user.id) }}" method="post">
-    <input type="text" name="name" required>
+    <input type="text" name="name" placeholder="Enter movie title" required>
     <button type="submit">Add Movie</button>
 </form>
 
